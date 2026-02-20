@@ -26,26 +26,21 @@ const { width, height } = Dimensions.get('window');
 export default function LoginScreen() {
     const router = useRouter();
     const { login, resetPassword } = useAuth();
-    const [role, setRole] = useState<'Student' | 'TPO' | 'Alumni'>('Student');
+    const [role, setRole] = useState<'Student' | 'Alumni'>('Student');
     const [username, setUsername] = useState('abhisheksit27@gmail.com');
     const [password, setPassword] = useState('1234');
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
 
-    // Pre-fill fields for easy testing when TPO is selected
+    // Pre-fill fields for easy testing
     React.useEffect(() => {
-        if (role === 'TPO') {
-            setUsername('abhitpo@gmail.com');
-            setPassword('1234');
-        } else if (role === 'Student') {
+        if (role === 'Student') {
             setUsername('abhisheksit27@gmail.com');
             setPassword('1234');
-        }
-        else if (role === 'Alumni') {
+        } else if (role === 'Alumni') {
             setUsername('alumni@gmail.com');
             setPassword('1234');
-        }
-        else {
+        } else {
             setUsername('');
             setPassword('');
         }
@@ -60,10 +55,6 @@ export default function LoginScreen() {
         // Enforce strict credentials based on role
         if (role === 'Student' && (username.trim() !== 'abhisheksit27@gmail.com' || password !== '1234')) {
             setErrorMsg('Invalid Student credentials.');
-            return;
-        }
-        if (role === 'TPO' && (username.trim() !== 'abhitpo@gmail.com' || password !== '1234')) {
-            setErrorMsg('Invalid TPO credentials.');
             return;
         }
         if (role === 'Alumni' && (username.trim() !== 'alumni@gmail.com' || password !== '1234')) {
@@ -154,7 +145,7 @@ export default function LoginScreen() {
 
                                 {/* Role Selector */}
                                 <View style={styles.roleContainer}>
-                                    {(['Student', 'TPO', 'Alumni'] as const).map((r) => (
+                                    {(['Student', 'Alumni'] as const).map((r) => (
                                         <TouchableOpacity
                                             key={r}
                                             style={[styles.roleButton, role === r && styles.roleButtonActive]}

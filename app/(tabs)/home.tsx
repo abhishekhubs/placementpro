@@ -12,45 +12,91 @@ import {
   TextInput,
   Alert,
   Modal,
-  KeyboardAvoidingView
+  KeyboardAvoidingView,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Autolink from 'react-native-autolink';
+import { useAuth } from '@/context/AuthContext';
 import { useFeed, Post } from '@/context/FeedContext';
+import { useNotifications } from '@/context/NotificationContext';
+import { useMentorship } from '@/context/MentorshipContext';
 
 export default function HomeScreen() {
+  const { logout, user } = useAuth();
   const { posts, toggleLike, addComment, sharePost } = useFeed();
+  const { notifications, unreadCount, markAllRead } = useNotifications();
+  const { bookSlot, getSlotsByAlumni } = useMentorship();
+  const [notifModalVisible, setNotifModalVisible] = React.useState(false);
+
+  // Mentorship Booking State
+  const [bookingModalVisible, setBookingModalVisible] = React.useState(false);
+  const [selectedAlumniEmail, setSelectedAlumniEmail] = React.useState<string | null>(null);
+  const [selectedAlumniName, setSelectedAlumniName] = React.useState('');
+
+  const [greeting, setGreeting] = React.useState('');
+  const [currentDate, setCurrentDate] = React.useState('');
+
+  React.useEffect(() => {
+    const updateHeaderInfo = () => {
+      const now = new Date();
+      const hour = now.getHours();
+      let g = 'Good Evening';
+      if (hour < 12) g = 'Good Morning';
+      else if (hour < 17) g = 'Good Afternoon';
+      setGreeting(g);
+
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      const dayName = days[now.getDay()];
+      const dayNum = now.getDate();
+      const monthName = months[now.getMonth()];
+      const year = now.getFullYear();
+
+      setCurrentDate(`${dayName}, ${dayNum} ${monthName} ${year}`);
+    };
+
+    updateHeaderInfo();
+    const interval = setInterval(updateHeaderInfo, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  const openNotifications = () => {
+    setNotifModalVisible(true);
+    markAllRead();
+  };
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       {/* Top App Bar */}
       <View style={styles.topBar}>
-        <View style={styles.logoRow}>
-          <Ionicons name="briefcase" size={24} color="#818CF8" />
-          <Text style={styles.appName}>PlacementPro</Text>
+        <View style={styles.leftHeader}>
+          <View style={styles.logoRow}>
+            <Ionicons name="briefcase" size={24} color="#818CF8" />
+            <Text style={styles.appName}>PlacementPro</Text>
+          </View>
+          <View style={styles.greetingContainer}>
+            <Text style={styles.helloText}>Hello, <Text style={styles.greetingText}>{greeting}</Text></Text>
+            <View style={styles.dateRow}>
+              <Text style={styles.dateText}>{currentDate}</Text>
+              <Ionicons name="chevron-down" size={14} color="#94A3B8" style={{ marginLeft: 4 }} />
+            </View>
+          </View>
         </View>
-        <TouchableOpacity style={styles.iconButton}>
-          <Ionicons name="notifications-outline" size={24} color="#F8FAFC" />
-          <View style={styles.badge} />
-        </TouchableOpacity>
-      </View>
 
-      {/* Create Post Section */}
-      <View style={styles.createPostContainer}>
-        <Image
-          source={{ uri: 'https://randomuser.me/api/portraits/men/1.jpg' }} // Mock current user
-          style={styles.currentUserAvatar}
-        />
-        <View style={styles.createPostBox}>
-          <TextInput
-            placeholder="Share an update or job..."
-            placeholderTextColor="#94A3B8"
-            style={styles.createPostInput}
+        <TouchableOpacity style={styles.iconButton} onPress={openNotifications}>
+          <Ionicons
+            name={unreadCount > 0 ? 'notifications' : 'notifications-outline'}
+            size={24}
+            color={unreadCount > 0 ? '#818CF8' : '#F8FAFC'}
           />
-          <TouchableOpacity style={styles.postButton}>
-            <Ionicons name="send" size={16} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -107,6 +153,23 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Mentorship Booking Action */}
+        {isAlumniPost && item.author.email && (
+          <View style={styles.mentorshipActionContainer}>
+            <TouchableOpacity
+              style={styles.bookMentorshipBtn}
+              onPress={() => {
+                setSelectedAlumniEmail(item.author.email!);
+                setSelectedAlumniName(item.author.name);
+                setBookingModalVisible(true);
+              }}
+            >
+              <Ionicons name="calendar" size={18} color="#FFFFFF" />
+              <Text style={styles.bookMentorshipText}>Book Mentorship with {item.author.name}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Render Comments */}
         {item.comments.length > 0 && (
           <View style={styles.commentsSection}>
@@ -130,7 +193,7 @@ export default function HomeScreen() {
             <Text style={styles.actionText}>Comment</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} onPress={() => {
-            sharePost(item.id);
+            sharePost(item.id, user?.name || 'You (Student)');
             Alert.alert("Reposted!", "This post has been reposted to your Student Profile.");
           }}>
             <Ionicons name="repeat" size={20} color="#94A3B8" />
@@ -153,7 +216,7 @@ export default function HomeScreen() {
 
   const handleSubmitComment = () => {
     if (activePostId && commentText.trim()) {
-      addComment(activePostId, commentText.trim());
+      addComment(activePostId, commentText.trim(), user?.name || 'You (Student)');
       setCommentModalVisible(false);
       setCommentText('');
       Alert.alert("Success", "Your comment has been posted!");
@@ -204,6 +267,62 @@ export default function HomeScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Mentorship Booking Modal */}
+      <Modal
+        visible={bookingModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setBookingModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.bookingModal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Book Session with {selectedAlumniName}</Text>
+              <TouchableOpacity onPress={() => setBookingModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+              <Text style={styles.modalSubTitle}>Available Time Slots</Text>
+              {getSlotsByAlumni(selectedAlumniEmail || '').filter(s => !s.bookedBy).length === 0 ? (
+                <Text style={styles.noSlotsText}>No available slots at the moment.</Text>
+              ) : (
+                getSlotsByAlumni(selectedAlumniEmail || '').filter(s => !s.bookedBy).map(slot => (
+                  <TouchableOpacity
+                    key={slot.id}
+                    style={styles.slotBookingItem}
+                    onPress={async () => {
+                      Alert.alert(
+                        "Confirm Booking",
+                        `Book a session for ${slot.day} at ${slot.time}?`,
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Confirm",
+                            onPress: async () => {
+                              await bookSlot(slot.id, user?.name || 'Student', user?.email || '');
+                              setBookingModalVisible(false);
+                              Alert.alert("Success!", "Your mentorship session has been booked.");
+                            }
+                          }
+                        ]
+                      );
+                    }}
+                  >
+                    <View style={styles.slotInfoRow}>
+                      <Ionicons name="time-outline" size={20} color="#818CF8" />
+                      <Text style={styles.slotTimeText}>{slot.day}, {slot.time}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -237,6 +356,7 @@ const styles = StyleSheet.create({
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 4,
   },
   appName: {
     fontSize: 22,
@@ -245,55 +365,54 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     letterSpacing: -0.5,
   },
+  leftHeader: {
+    flex: 1,
+  },
+  greetingContainer: {
+    marginTop: 4,
+  },
+  helloText: {
+    fontSize: 18,
+    color: '#E2E8F0',
+    fontWeight: '400',
+  },
+  greetingText: {
+    fontWeight: '700',
+    color: '#F8FAFC',
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  dateText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
   iconButton: {
     padding: 8,
     position: 'relative',
   },
   badge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 10,
-    height: 10,
+    top: 4,
+    right: 4,
+    minWidth: 18,
+    height: 18,
     backgroundColor: '#EF4444',
-    borderRadius: 5,
-    borderWidth: 2,
+    borderRadius: 9,
+    borderWidth: 1.5,
     borderColor: '#1E293B',
-  },
-  createPostContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  currentUserAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    marginRight: 12,
-  },
-  createPostBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#334155', // Slate 700 input BG
-    borderRadius: 25,
-    paddingHorizontal: 16,
-    height: 46,
-  },
-  createPostInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#F8FAFC',
-  },
-  postButton: {
-    backgroundColor: '#818CF8', // Lighter Indigo
-    width: 30,
-    height: 30,
-    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
+    paddingHorizontal: 2,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   postContainer: {
     backgroundColor: '#1E293B',
@@ -471,5 +590,67 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#CBD5E1',
     lineHeight: 20,
-  }
+  },
+  mentorshipActionContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  bookMentorshipBtn: {
+    backgroundColor: '#6C7FD8',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  bookMentorshipText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  bookingModal: {
+    backgroundColor: '#1E293B',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '80%',
+    borderTopWidth: 1,
+    borderColor: '#334155',
+  },
+  modalSubTitle: {
+    fontSize: 14,
+    color: '#94A3B8',
+    fontWeight: '600',
+    marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  noSlotsText: {
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 20,
+    fontStyle: 'italic',
+  },
+  slotBookingItem: {
+    backgroundColor: '#334155',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#475569',
+  },
+  slotInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  slotTimeText: {
+    color: '#F8FAFC',
+    fontSize: 15,
+    fontWeight: '600',
+  },
 });

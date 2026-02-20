@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Define the shape of a Post
 export interface Post {
@@ -7,6 +8,7 @@ export interface Post {
         name: string;
         role: string;
         avatar: string;
+        email?: string; // Added to link mentorship slots
     };
     timeAgo: string;
     content: string;
@@ -15,6 +17,9 @@ export interface Post {
     likes: number;
     comments: { id: string; text: string; authorName: string }[];
     shares: number;
+    repostedBy?: string[]; // Array of names who reposted this
+    postType?: 'achievement' | 'internship' | 'certificate' | 'skill' | 'general';
+    isStudentPost?: boolean;
 }
 
 // Initial Mock Data (moved from home.tsx)
@@ -73,11 +78,13 @@ interface FeedContextType {
     addPost: (post: Omit<Post, 'id' | 'likes' | 'comments' | 'shares' | 'timeAgo'>) => void;
     deletePost: (id: string) => void;
     toggleLike: (id: string) => void;
-    addComment: (id: string, text: string) => void;
-    sharePost: (id: string) => void;
+    addComment: (id: string, text: string, authorName?: string) => void;
+    sharePost: (id: string, userName?: string) => void;
 }
 
 const FeedContext = createContext<FeedContextType | undefined>(undefined);
+
+const FEED_STORAGE_KEY = 'placementpro_posts';
 
 export function useFeed() {
     const context = useContext(FeedContext);
@@ -89,6 +96,35 @@ export function useFeed() {
 
 export function FeedProvider({ children }: { children: React.ReactNode }) {
     const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
+
+    // Load posts from AsyncStorage
+    useEffect(() => {
+        const loadPosts = async () => {
+            try {
+                const savedPosts = await AsyncStorage.getItem(FEED_STORAGE_KEY);
+                if (savedPosts) {
+                    setPosts(JSON.parse(savedPosts));
+                }
+            } catch (e) {
+                console.error('Failed to load posts', e);
+            }
+        };
+        loadPosts();
+    }, []);
+
+    // Save posts whenever they change
+    useEffect(() => {
+        const savePosts = async () => {
+            try {
+                await AsyncStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(posts));
+            } catch (e) {
+                console.error('Failed to save posts', e);
+            }
+        };
+        if (posts !== INITIAL_POSTS) {
+            savePosts();
+        }
+    }, [posts]);
 
     const addPost = (postData: Omit<Post, 'id' | 'likes' | 'comments' | 'shares' | 'timeAgo'>) => {
         const newPost: Post = {
@@ -115,14 +151,14 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         );
     };
 
-    const addComment = (id: string, text: string) => {
+    const addComment = (id: string, text: string, authorName: string = 'Anonymous') => {
         setPosts((currentPosts) =>
             currentPosts.map(post => {
                 if (post.id === id) {
                     const newComment = {
                         id: Date.now().toString(),
                         text: text,
-                        authorName: 'You (Student)' // Mocking current user taking action
+                        authorName: authorName
                     };
                     return { ...post, comments: [...post.comments, newComment] };
                 }
@@ -131,11 +167,21 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         );
     };
 
-    const sharePost = (id: string) => {
+    const sharePost = (id: string, userName: string = 'Anonymous') => {
         setPosts((currentPosts) =>
-            currentPosts.map(post =>
-                post.id === id ? { ...post, shares: post.shares + 1 } : post
-            )
+            currentPosts.map(post => {
+                if (post.id === id) {
+                    const currentReposts = post.repostedBy || [];
+                    if (!currentReposts.includes(userName)) {
+                        return {
+                            ...post,
+                            shares: post.shares + 1,
+                            repostedBy: [...currentReposts, userName]
+                        };
+                    }
+                }
+                return post;
+            })
         );
     };
 

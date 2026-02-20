@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/context/AuthContext';
-import { useFeed } from '@/context/FeedContext';
+import { useFeed, Post } from '@/context/FeedContext';
+import { useMentorship } from '@/context/MentorshipContext';
 import { useRouter } from 'expo-router';
 
 const PROFILE_STORAGE_KEY = '@placementpro_user_profile';
@@ -58,9 +59,11 @@ export default function ProfileScreen() {
     const [editForm, setEditForm] = useState<UserProfileData>(userData);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadingField, setUploadingField] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'posts' | 'mentors'>('posts');
 
-    const { logout } = useAuth();
+    const { logout, user, updateProfile } = useAuth();
     const { posts } = useFeed();
+    const { getStudentBookings, getAvailableSlots, bookSlot } = useMentorship();
     const router = useRouter();
 
     const handleLogout = async () => {
@@ -86,11 +89,23 @@ export default function ProfileScreen() {
         const loadProfile = async () => {
             try {
                 const saved = await AsyncStorage.getItem(PROFILE_STORAGE_KEY);
+                let initialData = DEFAULT_PROFILE;
+
                 if (saved) {
-                    const parsed: UserProfileData = JSON.parse(saved);
-                    setUserData(parsed);
-                    setEditForm(parsed);
+                    initialData = JSON.parse(saved);
                 }
+
+                // Sync with AuthContext user if available
+                if (user) {
+                    initialData = {
+                        ...initialData,
+                        name: user.name || initialData.name,
+                        avatarImage: user.avatar || initialData.avatarImage,
+                    };
+                }
+
+                setUserData(initialData);
+                setEditForm(initialData);
             } catch (e) {
                 console.error('Failed to load profile from storage:', e);
             } finally {
@@ -98,7 +113,7 @@ export default function ProfileScreen() {
             }
         };
         loadProfile();
-    }, []);
+    }, [user]);
 
     const handleEditOpen = () => {
         setEditForm(userData); // Load current data into form
@@ -109,6 +124,12 @@ export default function ProfileScreen() {
         try {
             // Persist the updated profile data (including Cloudinary URLs) to AsyncStorage
             await AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(editForm));
+
+            // Sync with AuthContext
+            await updateProfile({
+                name: editForm.name,
+                avatar: editForm.avatarImage
+            });
         } catch (e) {
             console.error('Failed to save profile to storage:', e);
         }
@@ -171,6 +192,40 @@ export default function ProfileScreen() {
                 setUploadingField(null);
             }
         }
+    };
+    const renderPostItem = (post: Post) => {
+        const typeColors: Record<string, string> = {
+            internship: '#6C7FD8', certificate: '#10B981', skill: '#F59E0B',
+            achievement: '#EF4444', general: '#8B5CF6',
+        };
+        const badgeColor = typeColors[post.postType ?? 'general'] ?? '#8B5CF6';
+        return (
+            <View key={post.id} style={styles.postContainer}>
+                {post.postType && post.postType !== 'general' && (
+                    <View style={[styles.repostRow, { backgroundColor: badgeColor + '15', borderRadius: 8, paddingHorizontal: 8 }]}>
+                        <Ionicons name="ribbon-outline" size={13} color={badgeColor} />
+                        <Text style={[styles.repostText, { color: badgeColor }]}>
+                            {post.postType.charAt(0).toUpperCase() + post.postType.slice(1)}
+                        </Text>
+                    </View>
+                )}
+                <View style={styles.postContentRow}>
+                    <Image source={{ uri: post.author.avatar }} style={styles.postAvatar} />
+                    <View style={styles.postBody}>
+                        <View style={styles.postHeaderLine}>
+                            <Text style={styles.postAuthorName}>{post.author.name}</Text>
+                            <Text style={styles.postAuthorUsername}>· {post.timeAgo}</Text>
+                        </View>
+                        <Text style={styles.postText}>{post.content}</Text>
+                        {post.image && (
+                            <View style={styles.postMediaContainer}>
+                                <Image source={{ uri: post.image }} style={styles.postMediaImage} />
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </View>
+        );
     };
 
     return (
@@ -252,59 +307,76 @@ export default function ProfileScreen() {
 
                 {/* Sticky Horizontal Navigation Tabs */}
                 <View style={styles.navTabsContainer}>
-                    <TouchableOpacity style={styles.navTabActive}>
-                        <Text style={styles.navTabTextActive}>Posts</Text>
-                        <View style={styles.activeIndicator} />
+                    <TouchableOpacity
+                        style={activeTab === 'posts' ? styles.navTabActive : styles.navTab}
+                        onPress={() => setActiveTab('posts')}
+                    >
+                        <Text style={activeTab === 'posts' ? styles.navTabTextActive : styles.navTabText}>My Posts</Text>
+                        {activeTab === 'posts' && <View style={styles.activeIndicator} />}
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.navTab}>
-                        <Text style={styles.navTabText}>Replies</Text>
+                    <TouchableOpacity
+                        style={activeTab === 'mentors' ? styles.navTabActive : styles.navTab}
+                        onPress={() => setActiveTab('mentors')}
+                    >
+                        <Text style={activeTab === 'mentors' ? styles.navTabTextActive : styles.navTabText}>Mentors</Text>
+                        {activeTab === 'mentors' && <View style={styles.activeIndicator} />}
                     </TouchableOpacity>
                 </View>
 
                 {/* Feed Content Area */}
                 <View style={styles.feedContainer}>
-                    {
-                        posts.filter(p => p.shares > 0).length === 0 ? (
+                    {/* Filter posts based on active tab */}
+                    {activeTab === 'posts' ? (
+                        posts.filter(p => p.isStudentPost).length === 0 ? (
                             <View style={{ padding: 32, alignItems: 'center' }}>
-                                <Ionicons name="repeat" size={48} color={COLORS.border} />
-                                <Text style={{ color: COLORS.textSecondary, marginTop: 16 }}>Posts you repost will appear here.</Text>
+                                <Ionicons name="add-circle-outline" size={48} color={COLORS.border} />
+                                <Text style={{ color: COLORS.textSecondary, marginTop: 16, textAlign: 'center' }}>
+                                    No posts yet.{'\n'}Tap the + tab to share an internship, certificate, or skill!
+                                </Text>
                             </View>
                         ) : (
-                            posts.filter(p => p.shares > 0).map(post => (
-                                <View key={`shared-${post.id}`} style={styles.postContainer}>
-                                    <View style={styles.repostRow}>
-                                        <Ionicons name="repeat" size={14} color={COLORS.textSecondary} />
-                                        <Text style={styles.repostText}>You shared</Text>
+                            posts.filter(p => p.isStudentPost).map(post => renderPostItem(post))
+                        )
+                    ) : (
+                        getAvailableSlots().length === 0 ? (
+                            <View style={{ padding: 32, alignItems: 'center' }}>
+                                <Ionicons name="people-outline" size={48} color={COLORS.border} />
+                                <Text style={{ color: COLORS.textSecondary, marginTop: 16, textAlign: 'center' }}>
+                                    No mentors currently available for booking.
+                                </Text>
+                            </View>
+                        ) : (
+                            getAvailableSlots().map(slot => (
+                                <View key={slot.id} style={styles.bookingCard}>
+                                    <View style={styles.bookingInfo}>
+                                        <Text style={styles.mentorName}>{slot.alumniName}</Text>
+                                        <Text style={styles.bookingTime}>{slot.day} at {slot.time}</Text>
                                     </View>
-
-                                    <View style={styles.postContentRow}>
-                                        <Image
-                                            source={{ uri: post.author.avatar }}
-                                            style={styles.postAvatar}
-                                        />
-                                        <View style={styles.postBody}>
-                                            <View style={styles.postHeaderLine}>
-                                                <Text style={styles.postAuthorName}>{post.author.name}</Text>
-                                                {post.author.role.includes('Alumni') && (
-                                                    <Ionicons name="school" size={14} color="#F59E0B" style={{ marginHorizontal: 4 }} />
-                                                )}
-                                                <Text style={styles.postAuthorUsername}>· {post.timeAgo}</Text>
-                                            </View>
-                                            <Text style={styles.postText}>{post.content}</Text>
-                                            {post.image && (
-                                                <View style={styles.postMediaContainer}>
-                                                    <Image
-                                                        source={{ uri: post.image }}
-                                                        style={styles.postMediaImage}
-                                                    />
-                                                </View>
-                                            )}
-                                        </View>
-                                    </View>
+                                    <TouchableOpacity
+                                        style={styles.bookNowBtn}
+                                        onPress={async () => {
+                                            Alert.alert(
+                                                "Book Session",
+                                                `Confirm booking with ${slot.alumniName} for ${slot.day} at ${slot.time}?`,
+                                                [
+                                                    { text: "Cancel", style: "cancel" },
+                                                    {
+                                                        text: "Confirm",
+                                                        onPress: async () => {
+                                                            await bookSlot(slot.id, user?.name || 'Student', user?.email || '');
+                                                            Alert.alert("Success!", "Session booked successfully.");
+                                                        }
+                                                    }
+                                                ]
+                                            );
+                                        }}
+                                    >
+                                        <Text style={styles.bookNowText}>Book</Text>
+                                    </TouchableOpacity>
                                 </View>
                             ))
                         )
-                    }
+                    )}
 
                     {/* Logout Section */}
                     <View style={styles.logoutContainer}>
@@ -316,6 +388,7 @@ export default function ProfileScreen() {
 
                     <View style={{ height: 100 }} />
                 </View>
+
             </ScrollView>
 
             {/* Edit Profile Modal */}
@@ -743,6 +816,51 @@ const styles = StyleSheet.create({
     logoutText: {
         color: '#EF4444',
         fontSize: 16,
+        fontWeight: 'bold',
+    },
+    bookingCard: {
+        backgroundColor: COLORS.card,
+        margin: 16,
+        padding: 16,
+        borderRadius: 12,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    bookingInfo: {
+        gap: 4,
+    },
+    mentorName: {
+        color: COLORS.textPrimary,
+        fontSize: 16,
+        fontWeight: '700',
+    },
+    bookingTime: {
+        color: COLORS.textSecondary,
+        fontSize: 14,
+    },
+    statusBadge: {
+        backgroundColor: '#10B98120',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    statusText: {
+        color: '#10B981',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    bookNowBtn: {
+        backgroundColor: COLORS.accent,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+    },
+    bookNowText: {
+        color: '#FFFFFF',
+        fontSize: 14,
         fontWeight: 'bold',
     },
 });
