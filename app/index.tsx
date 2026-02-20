@@ -72,13 +72,13 @@ export default function OnboardingScreen() {
         if (currentIndex < SLIDES.length - 1) {
             slidesRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
         } else {
-            router.replace('/(tabs)/home');
+            router.replace('/login');
         }
     };
 
     const skip = () => {
         if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.replace('/(tabs)/home');
+        router.replace('/login');
     };
 
     const renderItem = ({ item, index }: any) => {
