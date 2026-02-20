@@ -159,12 +159,6 @@ export default function ProfileScreen() {
                     <TouchableOpacity style={styles.navTab}>
                         <Text style={styles.navTabText}>Replies</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.navTab}>
-                        <Text style={styles.navTabText}>Highlights</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.navTab}>
-                        <Text style={styles.navTabText}>Media</Text>
-                    </TouchableOpacity>
                 </View>
 
                 {/* Feed Content Area */}
