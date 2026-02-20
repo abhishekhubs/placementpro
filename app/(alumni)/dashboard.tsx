@@ -146,13 +146,15 @@ export default function AlumniDashboard() {
         setIsPosting(true);
 
         setTimeout(() => {
+            const postAuthor = {
+                name: user?.name || 'Verified Alumni',
+                role: user?.company ? `${user.position || 'Employee'} @ ${user.company}` : 'Verified Alumni',
+                avatar: user?.avatar || 'https://randomuser.me/api/portraits/men/4.jpg',
+                email: user?.email,
+            };
+
             addPost({
-                author: {
-                    name: user?.name || 'Verified Alumni',
-                    role: user?.company ? `${user.position || 'Employee'} @ ${user.company}` : 'Verified Alumni',
-                    avatar: user?.avatar || 'https://randomuser.me/api/portraits/men/4.jpg',
-                    email: user?.email,
-                },
+                author: postAuthor,
                 content: postText.trim(),
                 image: selectedImage,
                 link: linkUrl.trim() || null,
@@ -235,6 +237,12 @@ export default function AlumniDashboard() {
                             </View>
                         </TouchableOpacity>
                         <View style={styles.headerActions}>
+                            <TouchableOpacity
+                                style={styles.headerIconButton}
+                                onPress={() => router.push('/resume-builder' as any)}
+                            >
+                                <Ionicons name="document-text-outline" size={22} color="#FFFFFF" />
+                            </TouchableOpacity>
                             <TouchableOpacity style={styles.headerIconButton} onPress={() => setEditModalVisible(true)}>
                                 <Ionicons name="settings-outline" size={22} color="#FFFFFF" />
                             </TouchableOpacity>

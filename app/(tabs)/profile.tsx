@@ -249,10 +249,16 @@ export default function ProfileScreen() {
                         />
                     </View>
 
-                    {/* Edit Profile Button right-aligned */}
                     <View style={styles.actionButtonsRow}>
                         <TouchableOpacity style={styles.editButton} onPress={handleEditOpen}>
                             <Text style={styles.editButtonText}>Edit Profile</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.resumeBuilderBtn}
+                            onPress={() => router.push('/resume-builder' as any)}
+                        >
+                            <Ionicons name="document-text-outline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                            <Text style={styles.resumeBuilderText}>Resume Builder</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -543,9 +549,10 @@ const styles = StyleSheet.create({
         borderRadius: 36,
     },
     actionButtonsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingTop: 12, // Align with avatar vertical space
+        flexDirection: 'column',
+        alignItems: 'flex-end', // Align buttons to the right
+        paddingTop: 12,
+        gap: 8,
     },
     editButton: {
         backgroundColor: 'transparent',
@@ -556,12 +563,32 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
-        minWidth: 100,
+        minWidth: 120,
     },
     editButtonText: {
-        color: COLORS.textPrimary, // White text for Edit Profile
+        color: COLORS.textPrimary,
         fontWeight: 'bold',
-        fontSize: 14,
+        fontSize: 13,
+    },
+    resumeBuilderBtn: {
+        backgroundColor: COLORS.accent,
+        flexDirection: 'row',
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        minWidth: 140,
+        shadowColor: COLORS.accent,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    resumeBuilderText: {
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        fontSize: 13,
     },
     infoContainer: {
         paddingHorizontal: 16,
