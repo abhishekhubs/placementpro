@@ -10,26 +10,94 @@ import {
     Platform,
     Dimensions,
     Image,
-    ScrollView
+    ScrollView,
+    Alert,
+    ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import { useAuth } from '@/context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
     const router = useRouter();
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
+    const { login, resetPassword } = useAuth();
+    const [role, setRole] = useState<'Student' | 'TPO' | 'Alumni'>('Student');
+    const [username, setUsername] = useState('abhisheksit27@gmail.com');
+    const [password, setPassword] = useState('1234');
+    const [isLoading, setIsLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
 
-    const handleLogin = () => {
-        if (Platform.OS !== 'web') {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // Pre-fill fields for easy testing when TPO is selected
+    React.useEffect(() => {
+        if (role === 'TPO') {
+            setUsername('abhitpo@gmail.com');
+            setPassword('1234');
+        } else if (role === 'Student') {
+            setUsername('abhisheksit27@gmail.com');
+            setPassword('1234');
         }
-        router.replace('/(tabs)/home'); // For now, routes to home. Update with real auth later.
+        else if (role === 'Alumni') {
+            setUsername('alumni@gmail.com');
+            setPassword('1234');
+        }
+        else {
+            setUsername('');
+            setPassword('');
+        }
+    }, [role]);
+
+    const handleLogin = async () => {
+        if (!username.trim() || !password.trim()) {
+            setErrorMsg('Please enter your email and password.');
+            return;
+        }
+
+        // Enforce strict credentials based on role
+        if (role === 'Student' && (username.trim() !== 'abhisheksit27@gmail.com' || password !== '1234')) {
+            setErrorMsg('Invalid Student credentials.');
+            return;
+        }
+        if (role === 'TPO' && (username.trim() !== 'abhitpo@gmail.com' || password !== '1234')) {
+            setErrorMsg('Invalid TPO credentials.');
+            return;
+        }
+        if (role === 'Alumni' && (username.trim() !== 'alumni@gmail.com' || password !== '1234')) {
+            setErrorMsg('Invalid Alumni credentials.');
+            return;
+        }
+
+        setErrorMsg('');
+        setIsLoading(true);
+        try {
+            await login(username.trim(), password, role);
+            if (Platform.OS !== 'web') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+            // Navigation is handled automatically by the AuthContext listener in _layout.tsx
+        } catch (error: any) {
+            console.error('Login Error:', error);
+            setErrorMsg('Login failed. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleForgotPassword = async () => {
+        if (!username.trim()) {
+            Alert.alert('Reset Password', 'Please enter your email address in the field above first.');
+            return;
+        }
+        try {
+            await resetPassword(username.trim());
+            Alert.alert('Email Sent!', `A password reset link has been sent to ${username.trim()}.`);
+        } catch {
+            Alert.alert('Error', 'Could not send reset email. Please check your email address.');
+        }
     };
 
     return (
@@ -84,6 +152,22 @@ export default function LoginScreen() {
                             {/* Inputs Container */}
                             <View style={styles.formContainer}>
 
+                                {/* Role Selector */}
+                                <View style={styles.roleContainer}>
+                                    {(['Student', 'TPO', 'Alumni'] as const).map((r) => (
+                                        <TouchableOpacity
+                                            key={r}
+                                            style={[styles.roleButton, role === r && styles.roleButtonActive]}
+                                            onPress={() => setRole(r)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <Text style={[styles.roleButtonText, role === r && styles.roleButtonTextActive]}>
+                                                {r}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
                                 {/* Username Input */}
                                 <View style={styles.inputWrapper}>
                                     <Ionicons name="person-outline" size={18} color="#B0B0B0" style={styles.inputIcon} />
@@ -117,21 +201,35 @@ export default function LoginScreen() {
                                 </View>
 
                                 {/* Forgot Password - MOVED HERE */}
-                                <TouchableOpacity style={styles.forgotPasswordButton}>
+                                <TouchableOpacity style={styles.forgotPasswordButton} onPress={handleForgotPassword}>
                                     <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                                 </TouchableOpacity>
 
                                 {/* Login Button */}
-                                <TouchableOpacity style={styles.loginButton} onPress={handleLogin} activeOpacity={0.8}>
+                                <TouchableOpacity
+                                    style={styles.loginButton}
+                                    onPress={handleLogin}
+                                    activeOpacity={0.8}
+                                    disabled={isLoading}
+                                >
                                     <LinearGradient
-                                        colors={['#7E8CE0', '#6C7FD8']} // matching the soft blue-purple button color
+                                        colors={['#7E8CE0', '#6C7FD8']}
                                         style={styles.loginButtonGradient}
                                         start={{ x: 3, y: 0 }}
                                         end={{ x: 1, y: 0 }}
                                     >
-                                        <Text style={styles.loginButtonText}>Login</Text>
+                                        {isLoading ? (
+                                            <ActivityIndicator color="#FFFFFF" />
+                                        ) : (
+                                            <Text style={styles.loginButtonText}>Login</Text>
+                                        )}
                                     </LinearGradient>
                                 </TouchableOpacity>
+
+                                {/* Error Message */}
+                                {errorMsg ? (
+                                    <Text style={styles.errorText}>{errorMsg}</Text>
+                                ) : null}
 
                             </View>
 
@@ -230,6 +328,38 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: -35, // Negative margin to pull inputs up by ~1cm
     },
+    roleContainer: {
+        flexDirection: 'row',
+        width: '100%',
+        justifyContent: 'space-between',
+        backgroundColor: '#F3F4F6',
+        borderRadius: 20,
+        padding: 4,
+        marginBottom: 20,
+    },
+    roleButton: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 16,
+    },
+    roleButtonActive: {
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    roleButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#6B7280',
+    },
+    roleButtonTextActive: {
+        color: '#6C7FD8',
+        fontWeight: '700',
+    },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -286,6 +416,12 @@ const styles = StyleSheet.create({
         fontSize: 17, // Larger bolder button text
         fontWeight: '700',
         letterSpacing: 0.5,
+    },
+    errorText: {
+        color: '#EF4444',
+        fontSize: 14,
+        textAlign: 'center',
+        marginTop: 8,
     },
     forgotPasswordButton: {
         alignSelf: 'center', // Aligns right, matching common placement under input

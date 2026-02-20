@@ -1,0 +1,187 @@
+mutation CreateDemoData @transaction @auth(level: PUBLIC, insecureReason: "This is seed data and does not expose any sensitive information.") {
+  permission_insertMany(data: [
+    {
+      id: "b4d7c07b-8b5d-4f1e-9d2a-7e1c8b4d7c07",
+      name: "create_user",
+      description: "Permission to create a new user account.",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      id: "a3c6b06a-7c4d-4e0f-8c1b-6d0b7a3c6b06",
+      name: "read_user",
+      description: "Permission to read user account details.",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      id: "f8e2d1c5-9a7b-4d3e-0f1c-5a9b7f8e2d1c",
+      name: "update_user",
+      description: "Permission to update user account details.",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      id: "e0f9a8b7-6c5d-4a3b-2e1c-0d9a8e0f9a8b",
+      name: "delete_user",
+      description: "Permission to delete a user account.",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      id: "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+      name: "assign_role",
+      description: "Permission to assign roles to users.",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      id: "5f4e3d2c-1b0a-9f8e-7d6c-5b4a3f2e1d0c",
+      name: "create_role",
+      description: "Permission to create new roles.",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      id: "9e8d7c6b-5a4f-3e2d-1c0b-9a8d7e6c5b4a",
+      name: "read_role",
+      description: "Permission to read role details.",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z"
+    }
+  ])
+  role_insertMany(data: [
+    {
+      id: "1b9d6acd-3a5e-4b7f-8c0d-2e1f4a3b6c7d",
+      name: "admin",
+      description: "Administrator role with full access.",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      id: "2c8e7bcf-4d6f-5e8a-9b1e-3f2d5a4c8b9e",
+      name: "editor",
+      description: "Editor role with content modification privileges.",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      id: "3d7f8aec-5e9b-6f1c-0d2a-4b3c7e5d9f0a",
+      name: "viewer",
+      description: "Viewer role with read-only access.",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z"
+    }
+  ])
+  rolePermission_insertMany(data: [
+    {
+      roleId: "1b9d6acd-3a5e-4b7f-8c0d-2e1f4a3b6c7d", # admin role
+      permissionId: "b4d7c07b-8b5d-4f1e-9d2a-7e1c8b4d7c07", # create_user
+      grantedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      roleId: "1b9d6acd-3a5e-4b7f-8c0d-2e1f4a3b6c7d", # admin role
+      permissionId: "a3c6b06a-7c4d-4e0f-8c1b-6d0b7a3c6b06", # read_user
+      grantedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      roleId: "1b9d6acd-3a5e-4b7f-8c0d-2e1f4a3b6c7d", # admin role
+      permissionId: "f8e2d1c5-9a7b-4d3e-0f1c-5a9b7f8e2d1c", # update_user
+      grantedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      roleId: "1b9d6acd-3a5e-4b7f-8c0d-2e1f4a3b6c7d", # admin role
+      permissionId: "e0f9a8b7-6c5d-4a3b-2e1c-0d9a8e0f9a8b", # delete_user
+      grantedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      roleId: "1b9d6acd-3a5e-4b7f-8c0d-2e1f4a3b6c7d", # admin role
+      permissionId: "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d", # assign_role
+      grantedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      roleId: "1b9d6acd-3a5e-4b7f-8c0d-2e1f4a3b6c7d", # admin role
+      permissionId: "5f4e3d2c-1b0a-9f8e-7d6c-5b4a3f2e1d0c", # create_role
+      grantedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      roleId: "1b9d6acd-3a5e-4b7f-8c0d-2e1f4a3b6c7d", # admin role
+      permissionId: "9e8d7c6b-5a4f-3e2d-1c0b-9a8d7e6c5b4a", # read_role
+      grantedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      roleId: "2c8e7bcf-4d6f-5e8a-9b1e-3f2d5a4c8b9e", # editor role
+      permissionId: "a3c6b06a-7c4d-4e0f-8c1b-6d0b7a3c6b06", # read_user
+      grantedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      roleId: "2c8e7bcf-4d6f-5e8a-9b1e-3f2d5a4c8b9e", # editor role
+      permissionId: "f8e2d1c5-9a7b-4d3e-0f1c-5a9b7f8e2d1c", # update_user
+      grantedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      roleId: "2c8e7bcf-4d6f-5e8a-9b1e-3f2d5a4c8b9e", # editor role
+      permissionId: "9e8d7c6b-5a4f-3e2d-1c0b-9a8d7e6c5b4a", # read_role
+      grantedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      roleId: "3d7f8aec-5e9b-6f1c-0d2a-4b3c7e5d9f0a", # viewer role
+      permissionId: "a3c6b06a-7c4d-4e0f-8c1b-6d0b7a3c6b06", # read_user
+      grantedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      roleId: "3d7f8aec-5e9b-6f1c-0d2a-4b3c7e5d9f0a", # viewer role
+      permissionId: "9e8d7c6b-5a4f-3e2d-1c0b-9a8d7e6c5b4a", # read_role
+      grantedAt: "2024-01-01T00:00:00Z"
+    }
+  ])
+  user_insertMany(data: [
+    {
+      id: "4e9f5b0a-6d8c-4a1b-9f2e-5c7d8e0f1a2b",
+      username: "adminuser",
+      email: "admin@example.com",
+      hashedPassword: "hashed_admin_password",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      displayName: "Admin User",
+      lastLoginAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      id: "6a8b9c0d-1e2f-3a4b-5c6d-7e8f9a0b1c2d",
+      username: "editoruser",
+      email: "editor@example.com",
+      hashedPassword: "hashed_editor_password",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      displayName: "Editor User",
+      lastLoginAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      id: "8c7d6e5f-4a3b-2c1d-0e9f-8a7b6c5d4e3f",
+      username: "vieweruser",
+      email: "viewer@example.com",
+      hashedPassword: "hashed_viewer_password",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      displayName: "Viewer User",
+      lastLoginAt: "2024-01-01T00:00:00Z"
+    }
+  ])
+  userRole_insertMany(data: [
+    {
+      userId: "4e9f5b0a-6d8c-4a1b-9f2e-5c7d8e0f1a2b", # adminuser
+      roleId: "1b9d6acd-3a5e-4b7f-8c0d-2e1f4a3b6c7d", # admin role
+      assignedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      userId: "6a8b9c0d-1e2f-3a4b-5c6d-7e8f9a0b1c2d", # editoruser
+      roleId: "2c8e7bcf-4d6f-5e8a-9b1e-3f2d5a4c8b9e", # editor role
+      assignedAt: "2024-01-01T00:00:00Z"
+    },
+    {
+      userId: "8c7d6e5f-4a3b-2c1d-0e9f-8a7b6c5d4e3f", # vieweruser
+      roleId: "3d7f8aec-5e9b-6f1c-0d2a-4b3c7e5d9f0a", # viewer role
+      assignedAt: "2024-01-01T00:00:00Z"
+    }
+  ])
+}

@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView, Dimensions, Modal, TextInput, Platform, Linking } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView, Dimensions, Modal, TextInput, Platform, Linking, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/context/AuthContext';
+import { useFeed } from '@/context/FeedContext';
+import { useRouter } from 'expo-router';
+
+const PROFILE_STORAGE_KEY = '@placementpro_user_profile';
 
 const { width } = Dimensions.get('window');
 
@@ -31,8 +37,8 @@ interface UserProfileData {
 }
 
 export default function ProfileScreen() {
-    // Initial profile state
-    const [userData, setUserData] = useState<UserProfileData>({
+    // Default profile - used only for first-time launch
+    const DEFAULT_PROFILE: UserProfileData = {
         name: 'Stas Neprokin',
         username: 'sneprokin',
         isVerified: true,
@@ -43,19 +49,70 @@ export default function ProfileScreen() {
         location: 'Earth',
         website: 'neprokin.com',
         joinDate: 'November 2010',
-    });
+    };
 
-    // Edit modal state
+    const [userData, setUserData] = useState<UserProfileData>(DEFAULT_PROFILE);
+    const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState<UserProfileData>(userData);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadingField, setUploadingField] = useState<string | null>(null);
+
+    const { logout } = useAuth();
+    const { posts } = useFeed();
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        Alert.alert(
+            "Log Out",
+            "Are you sure you want to log out?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Log Out",
+                    style: "destructive",
+                    onPress: async () => {
+                        await logout();
+                        router.replace('/login');
+                    }
+                }
+            ]
+        );
+    };
+
+    // Load profile from AsyncStorage on first mount
+    useEffect(() => {
+        const loadProfile = async () => {
+            try {
+                const saved = await AsyncStorage.getItem(PROFILE_STORAGE_KEY);
+                if (saved) {
+                    const parsed: UserProfileData = JSON.parse(saved);
+                    setUserData(parsed);
+                    setEditForm(parsed);
+                }
+            } catch (e) {
+                console.error('Failed to load profile from storage:', e);
+            } finally {
+                setIsLoadingProfile(false);
+            }
+        };
+        loadProfile();
+    }, []);
 
     const handleEditOpen = () => {
         setEditForm(userData); // Load current data into form
         setIsEditing(true);
     };
 
-    const handleSaveProfile = () => {
-        setUserData(editForm); // Save form data
+    const handleSaveProfile = async () => {
+        try {
+            // Persist the updated profile data (including Cloudinary URLs) to AsyncStorage
+            await AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(editForm));
+        } catch (e) {
+            console.error('Failed to save profile to storage:', e);
+        }
+        setUserData(editForm); // Update UI state
         setIsEditing(false);
     };
 
@@ -65,11 +122,54 @@ export default function ProfileScreen() {
             mediaTypes: ['images'],
             allowsEditing: true,
             aspect: field === 'avatarImage' ? [1, 1] : [16, 9],
-            quality: 1,
+            quality: 0.8,
+            base64: true, // Request base64 data for Cloudinary upload
         });
 
-        if (!result.canceled) {
-            setEditForm({ ...editForm, [field]: result.assets[0].uri });
+        if (!result.canceled && result.assets[0]) {
+            const asset = result.assets[0];
+
+            // Immediately show a local preview for a snappy UX
+            setEditForm(prev => ({ ...prev, [field]: asset.uri }));
+
+            if (!asset.base64) {
+                Alert.alert('Upload Error', 'Could not read image data. Please try again.');
+                return;
+            }
+
+            try {
+                setIsUploading(true);
+                setUploadingField(field);
+
+                // Upload to Cloudinary via the secure API route
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        imageBase64: `data:image/jpeg;base64,${asset.base64}`,
+                        folder: 'PlacementPro_Uploads',
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+
+                const data = await response.json();
+
+                if (data.url) {
+                    // Replace local URI with the persisted Cloudinary URL
+                    setEditForm(prev => ({ ...prev, [field]: data.url }));
+                } else {
+                    throw new Error('No URL returned from upload');
+                }
+            } catch (error) {
+                console.error('Image upload error:', error);
+                Alert.alert('Upload Failed', 'Could not upload image to cloud. The local image will be used.');
+            } finally {
+                setIsUploading(false);
+                setUploadingField(null);
+            }
         }
     };
 
@@ -163,39 +263,57 @@ export default function ProfileScreen() {
 
                 {/* Feed Content Area */}
                 <View style={styles.feedContainer}>
-                    {/* Post Preview Component */}
-                    <View style={styles.postContainer}>
-                        <View style={styles.repostRow}>
-                            <Ionicons name="repeat" size={14} color={COLORS.textSecondary} />
-                            <Text style={styles.repostText}>You reposted</Text>
-                        </View>
-
-                        <View style={styles.postContentRow}>
-                            <Image
-                                source={{ uri: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1974&auto=format&fit=crop' }}
-                                style={styles.postAvatar}
-                            />
-                            <View style={styles.postBody}>
-                                <View style={styles.postHeaderLine}>
-                                    <Text style={styles.postAuthorName}>Modest Mitkus</Text>
-                                    <Ionicons name="shield-checkmark" size={14} color="#0A66C2" style={{ marginHorizontal: 2 }} />
-                                    <Text style={styles.postAuthorUsername}>@Mo... · Nov 20, 2023</Text>
-                                    <Ionicons name="ellipsis-horizontal" size={16} color={COLORS.textSecondary} style={styles.postMoreIcon} />
-                                </View>
-                                <Text style={styles.postText}>
-                                    Everyone should own products that earn $10,000/month.{'\n\n'}
-                                    Unfortunately, most people have no idea how...{'\n\n'}
-                                    Here's my tested blueprint to go from $0 {'->'} $10,000/month:
-                                </Text>
-                                <View style={styles.postMediaContainer}>
-                                    <Image
-                                        source={{ uri: 'https://images.unsplash.com/photo-1581368135153-a506cf13b1e1?q=80&w=2070&auto=format&fit=crop' }}
-                                        style={styles.postMediaImage}
-                                    />
-                                </View>
+                    {
+                        posts.filter(p => p.shares > 0).length === 0 ? (
+                            <View style={{ padding: 32, alignItems: 'center' }}>
+                                <Ionicons name="repeat" size={48} color={COLORS.border} />
+                                <Text style={{ color: COLORS.textSecondary, marginTop: 16 }}>Posts you repost will appear here.</Text>
                             </View>
-                        </View>
+                        ) : (
+                            posts.filter(p => p.shares > 0).map(post => (
+                                <View key={`shared-${post.id}`} style={styles.postContainer}>
+                                    <View style={styles.repostRow}>
+                                        <Ionicons name="repeat" size={14} color={COLORS.textSecondary} />
+                                        <Text style={styles.repostText}>You shared</Text>
+                                    </View>
+
+                                    <View style={styles.postContentRow}>
+                                        <Image
+                                            source={{ uri: post.author.avatar }}
+                                            style={styles.postAvatar}
+                                        />
+                                        <View style={styles.postBody}>
+                                            <View style={styles.postHeaderLine}>
+                                                <Text style={styles.postAuthorName}>{post.author.name}</Text>
+                                                {post.author.role.includes('Alumni') && (
+                                                    <Ionicons name="school" size={14} color="#F59E0B" style={{ marginHorizontal: 4 }} />
+                                                )}
+                                                <Text style={styles.postAuthorUsername}>· {post.timeAgo}</Text>
+                                            </View>
+                                            <Text style={styles.postText}>{post.content}</Text>
+                                            {post.image && (
+                                                <View style={styles.postMediaContainer}>
+                                                    <Image
+                                                        source={{ uri: post.image }}
+                                                        style={styles.postMediaImage}
+                                                    />
+                                                </View>
+                                            )}
+                                        </View>
+                                    </View>
+                                </View>
+                            ))
+                        )
+                    }
+
+                    {/* Logout Section */}
+                    <View style={styles.logoutContainer}>
+                        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                            <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+                            <Text style={styles.logoutText}>Log Out</Text>
+                        </TouchableOpacity>
                     </View>
+
                     <View style={{ height: 100 }} />
                 </View>
             </ScrollView>
@@ -272,16 +390,36 @@ export default function ProfileScreen() {
                         />
 
                         <Text style={styles.inputLabel}>Profile Image</Text>
-                        <TouchableOpacity style={styles.imagePickerButton} onPress={() => pickImage('avatarImage')}>
-                            <Ionicons name="camera-outline" size={20} color={COLORS.textPrimary} />
-                            <Text style={styles.imagePickerText}>Choose Profile Picture</Text>
+                        <TouchableOpacity
+                            style={styles.imagePickerButton}
+                            onPress={() => pickImage('avatarImage')}
+                            disabled={isUploading}
+                        >
+                            {isUploading && uploadingField === 'avatarImage' ? (
+                                <ActivityIndicator size="small" color={COLORS.accent} />
+                            ) : (
+                                <Ionicons name="camera-outline" size={20} color={COLORS.textPrimary} />
+                            )}
+                            <Text style={styles.imagePickerText}>
+                                {isUploading && uploadingField === 'avatarImage' ? 'Uploading...' : 'Choose Profile Picture'}
+                            </Text>
                         </TouchableOpacity>
                         {editForm.avatarImage ? <Image source={{ uri: editForm.avatarImage }} style={styles.previewAvatar} /> : null}
 
                         <Text style={styles.inputLabel}>Cover Image</Text>
-                        <TouchableOpacity style={styles.imagePickerButton} onPress={() => pickImage('coverImage')}>
-                            <Ionicons name="image-outline" size={20} color={COLORS.textPrimary} />
-                            <Text style={styles.imagePickerText}>Choose Cover Photo</Text>
+                        <TouchableOpacity
+                            style={styles.imagePickerButton}
+                            onPress={() => pickImage('coverImage')}
+                            disabled={isUploading}
+                        >
+                            {isUploading && uploadingField === 'coverImage' ? (
+                                <ActivityIndicator size="small" color={COLORS.accent} />
+                            ) : (
+                                <Ionicons name="image-outline" size={20} color={COLORS.textPrimary} />
+                            )}
+                            <Text style={styles.imagePickerText}>
+                                {isUploading && uploadingField === 'coverImage' ? 'Uploading...' : 'Choose Cover Photo'}
+                            </Text>
                         </TouchableOpacity>
                         {editForm.coverImage ? <Image source={{ uri: editForm.coverImage }} style={styles.previewCover} /> : null}
                     </ScrollView>
@@ -585,5 +723,26 @@ const styles = StyleSheet.create({
         resizeMode: 'cover',
         borderWidth: 1,
         borderColor: COLORS.border,
+    },
+    logoutContainer: {
+        paddingHorizontal: 16,
+        paddingTop: 8,
+        paddingBottom: 24,
+    },
+    logoutButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: COLORS.card,
+        paddingVertical: 14,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#EF444430', // Very subtle red border
+        gap: 8,
+    },
+    logoutText: {
+        color: '#EF4444',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });

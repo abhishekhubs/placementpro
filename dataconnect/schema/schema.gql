@@ -1,0 +1,35 @@
+type User @table {
+  username: String!
+  hashedPassword: String!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  email: String
+  displayName: String
+  lastLoginAt: Timestamp
+}
+
+type Role @table {
+  name: String!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  description: String
+}
+
+type Permission @table {
+  name: String!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  description: String
+}
+
+type UserRole @table(key: ["user", "role"]) {
+  user: User!
+  role: Role!
+  assignedAt: Timestamp!
+}
+
+type RolePermission @table(key: ["role", "permission"]) {
+  role: Role!
+  permission: Permission!
+  grantedAt: Timestamp!
+}
