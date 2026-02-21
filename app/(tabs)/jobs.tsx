@@ -13,6 +13,7 @@ import {
     Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -449,7 +450,16 @@ function MockTestTab() {
 
 // ─── Root Screen ──────────────────────────────────────────────────────────────
 export default function StatusScreen() {
+    const params = useLocalSearchParams();
     const [activeTab, setActiveTab] = useState<ActiveTab>('mock');
+
+    useEffect(() => {
+        if (params.tab === 'gap') {
+            setActiveTab('gap');
+        } else if (params.tab === 'mock') {
+            setActiveTab('mock');
+        }
+    }, [params.tab]);
 
     return (
         <SafeAreaView style={s.safe}>

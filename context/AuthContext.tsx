@@ -71,7 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (isLoading) return;
 
-        const inAuthGroup = segments[0] === '(tabs)' || segments[0] === '(tpo)' || segments[0] === '(alumni)';
+        const publicSegments = ['login', 'signup', 'index', 'modal', '_sitemap', 'search'];
+        const inAuthGroup = !publicSegments.includes(segments[0] as string);
 
         // Auto-routing logic
         if (!user && inAuthGroup) {
