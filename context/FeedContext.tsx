@@ -10,7 +10,8 @@ export interface Post {
         avatar: string;
         email?: string; // Added to link mentorship slots
     };
-    timeAgo: string;
+    timeAgo?: string; // Kept for compatibility but will be calculated dynamically
+    timestamp: number;
     content: string;
     image: string | null;
     link?: string | null;
@@ -31,7 +32,7 @@ const INITIAL_POSTS: Post[] = [
             role: 'Senior Recruiter at TechCorp',
             avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
         },
-        timeAgo: '2 hours ago',
+        timestamp: Date.now() - 2 * 60 * 60 * 1000, // 2 hours ago
         content: 'We are urgently hiring for React Native developers! 🚀 If you have 2+ years of experience and love building beautiful mobile apps, drop a comment or DM me. #hiring #reactnative #jobs',
         image: null,
         link: 'https://careers.techcorp.com',
@@ -48,7 +49,7 @@ const INITIAL_POSTS: Post[] = [
             role: 'Recent CS Graduate',
             avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
         },
-        timeAgo: '5 hours ago',
+        timestamp: Date.now() - 5 * 60 * 60 * 1000, // 5 hours ago
         content: 'Just finished my final round interview with Google! The preparation finally paid off. Thank you to everyone who helped me with mock interviews on this platform. 🙏',
         image: 'https://images.unsplash.com/photo-1573164713988-8665fc963095?auto=format&fit=crop&q=80&w=800',
         link: null,
@@ -63,7 +64,7 @@ const INITIAL_POSTS: Post[] = [
             role: 'System Updates',
             avatar: 'https://ui-avatars.com/api/?name=Placement+Pro&background=6C7FD8&color=fff',
         },
-        timeAgo: '1 day ago',
+        timestamp: Date.now() - 24 * 60 * 60 * 1000, // 1 day ago
         content: '📢 Important update for all upcoming campus drives! Make sure your resume is updated to the latest format within the next 48 hours to be automatically shortlisted.',
         image: null,
         link: null,
@@ -103,7 +104,13 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
             try {
                 const savedPosts = await AsyncStorage.getItem(FEED_STORAGE_KEY);
                 if (savedPosts) {
-                    setPosts(JSON.parse(savedPosts));
+                    const parsed = JSON.parse(savedPosts);
+                    // Migration: Ensure all legacy posts have a timestamp
+                    const migrated = parsed.map((p: any) => ({
+                        ...p,
+                        timestamp: p.timestamp || Date.now() - (Math.random() * 1000000) // Fallback for old posts
+                    }));
+                    setPosts(migrated);
                 }
             } catch (e) {
                 console.error('Failed to load posts', e);
@@ -130,7 +137,7 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
         const newPost: Post = {
             ...postData,
             id: Date.now().toString(),
-            timeAgo: 'Just now',
+            timestamp: Date.now(),
             likes: 0,
             comments: [],
             shares: 0,

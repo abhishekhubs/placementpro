@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useFeed, Post } from '@/context/FeedContext';
 import { useMentorship } from '@/context/MentorshipContext';
 import { useRouter } from 'expo-router';
+import { formatRelativeTime } from '@/utils/time';
 
 const PROFILE_STORAGE_KEY = '@placementpro_user_profile';
 
@@ -60,6 +61,7 @@ export default function ProfileScreen() {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadingField, setUploadingField] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'posts' | 'mentors'>('posts');
+    const [ticker, setTicker] = useState(0);
 
     const { logout, user, updateProfile } = useAuth();
     const { posts } = useFeed();
@@ -113,6 +115,11 @@ export default function ProfileScreen() {
             }
         };
         loadProfile();
+
+        const interval = setInterval(() => {
+            setTicker(t => t + 1);
+        }, 60000);
+        return () => clearInterval(interval);
     }, [user]);
 
     const handleEditOpen = () => {
@@ -214,7 +221,7 @@ export default function ProfileScreen() {
                     <View style={styles.postBody}>
                         <View style={styles.postHeaderLine}>
                             <Text style={styles.postAuthorName}>{post.author.name}</Text>
-                            <Text style={styles.postAuthorUsername}>· {post.timeAgo}</Text>
+                            <Text style={styles.postAuthorUsername}>· {formatRelativeTime(post.timestamp)}</Text>
                         </View>
                         <Text style={styles.postText}>{post.content}</Text>
                         {post.image && (

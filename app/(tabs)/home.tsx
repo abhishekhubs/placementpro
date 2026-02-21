@@ -21,6 +21,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useFeed, Post } from '@/context/FeedContext';
 import { useNotifications } from '@/context/NotificationContext';
 import { useMentorship } from '@/context/MentorshipContext';
+import { formatRelativeTime } from '@/utils/time';
 
 export default function HomeScreen() {
   const { logout, user } = useAuth();
@@ -36,6 +37,7 @@ export default function HomeScreen() {
 
   const [greeting, setGreeting] = React.useState('');
   const [currentDate, setCurrentDate] = React.useState('');
+  const [ticker, setTicker] = React.useState(0); // Used to force re-render every minute for timestamps
 
   React.useEffect(() => {
     const updateHeaderInfo = () => {
@@ -58,7 +60,10 @@ export default function HomeScreen() {
     };
 
     updateHeaderInfo();
-    const interval = setInterval(updateHeaderInfo, 60000); // Update every minute
+    const interval = setInterval(() => {
+      updateHeaderInfo();
+      setTicker(t => t + 1); // Force re-render for relative timestamps
+    }, 60000); // Update every minute
     return () => clearInterval(interval);
   }, []);
 
@@ -115,7 +120,7 @@ export default function HomeScreen() {
               {isAlumniPost && <Ionicons name="school" size={14} color="#F59E0B" style={{ marginLeft: 6 }} />}
             </View>
             <Text style={styles.authorRole}>{item.author.role}</Text>
-            <Text style={styles.timeAgo}>{item.timeAgo}</Text>
+            <Text style={styles.timeAgo}>{formatRelativeTime(item.timestamp)}</Text>
           </View>
           <TouchableOpacity>
             <Ionicons name="ellipsis-horizontal" size={20} color="#94A3B8" />
